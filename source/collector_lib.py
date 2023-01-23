@@ -21,6 +21,78 @@ def add_to_collected(key:str, id: Union[int,list]) -> None:
         collectedlist[key].append(i)
     save_json(collectedlist, json_name="collected.json", default_path="config\\auto_collector")    
 
+def is_col_refreshed(col_name, col_time):
+    col_time = col_time[:col_time.index('.')]
+    time_stamp = time.mktime(time.strptime(col_time, "%Y-%m-%d %H:%M:%S"))
+    now_stamp = time.time()
+    reflash_period = 48
+    reflash_sec = reflash_period*60*60
+    if now_stamp - time_stamp > reflash_sec:
+        return True
+    else:
+        return False
+def generate_collected_from_log(regenerate = True):
+    loglist = load_json("collection_log.json", "config\\auto_collector")
+    if regenerate:
+        collected_list = {}
+    else:
+        collected_list = load_json("collected.json", "config\\auto_collector")
+    for i in loglist:
+        key_name = i
+        collected_list.setdefault(key_name, [])
+        for ii in loglist[i]:
+            col_id = ii["id"]
+            col_time = ii["time"]
+            if not is_col_refreshed(key_name, col_time):
+                collected_list[key_name].append(col_id)
+                print(col_id)
+    save_json(collected_list, "collected.json", "config\\auto_collector")
+
+def generate_masked_col_from_log(regenerate = True):
+    min_times = load_json("auto_collector.json")["minimum_times_mask_col_id"]
+    loglist = load_json("collection_log.json", "config\\auto_collector")
+    if regenerate:
+        bla_list = {}
+    else:
+        bla_list = load_json("collection_blacklist.json", "config\\auto_collector")
+    for i in loglist:
+        key_name = i
+        bla_list.setdefault(key_name, [])
+        fail_times = {}
+        for ii in loglist[i]:
+            col_id = ii["id"]
+            col_time = ii["picked item"]
+            if col_time == ["None"]:
+                fail_times[str(col_id)] = fail_times.setdefault(str(col_id), 0) + 1
+        for ii in fail_times:
+            if int(fail_times[str(ii)]) >= min_times:
+                bla_list[key_name].append(int(ii))
+    save_json(bla_list, "collection_blacklist.json", "config\\auto_collector")
+
+def col_succ_times_from_log(key_name, day=1):
+    loglist = load_json("collection_log.json", "config\\auto_collector")
+    total_n = 0
+    succ_n = 0
+    t = day*3600*24
+    for i in loglist[key_name]:
+        col_time = i["time"]
+        col_time = col_time[:col_time.index('.')]
+        time_stamp = time.mktime(time.strptime(col_time, "%Y-%m-%d %H:%M:%S"))
+        now_stamp = time.time()
+        if now_stamp - time_stamp <= t:
+            total_n+=1
+            if i["picked item"] != ["None"]:
+                succ_n+=1
+    fail_n = total_n - succ_n
+    if total_n == 0:
+        succ_rate = 1
+    else:
+        succ_rate = succ_n/total_n
+    return round(succ_rate*100, 1), total_n, succ_n, fail_n
+
+if __name__ == '__main__':
+    print(col_succ_times_from_log("清心"))
+
 all_list = ['突发委托', '雷神瞳2', '兽肉 - 稻妻', '相位之门', '石碑', '深海龙蜥 - 渊下宫', '键纹基座Ⅰ',
             '禽肉 - 稻妻', '雪山迷踪', '摩拉调查点 - 稻妻', '武器调查点 - 鹤观', '愚人众先遣队 - 璃月',
             '【「清籁岛」的记录画片 · 之二】对应拍照点', '史莱姆 - 鹤观', '盗宝团 - 璃月', '发光髓-群岛',
@@ -253,5 +325,4 @@ def get_all_collection_name()->list:
  - 稻妻2', '黑岩之困', '冒险要朝着远方', '宝箱 - 龙脊雪山', '苹果 - 璃月', '地灵龛 - 鹤观', '海草 - 稻妻2', '薄荷 - 渊下宫', '踏鞴物语【后续】系列', '落落梅', '【逆子的归乡】触发点', '清籁逐雷记 · 其一', '陨石碎片', '鬼兜虫 - 稻妻', '每天都是新的冒险', '群玉阁....再现？', '「总务司」的事务', '仲夏庭园', '深渊法师 - 璃月']
     """
     return list(set(ret_list) - set())
-
 
